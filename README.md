@@ -145,6 +145,8 @@ tier), not just reviewed:
 | `supabase/queries/triage_queries.sql` | 9 statements, clean |
 | `supabase/queries/smoke_test.sql` | views and search behave as documented |
 | `supabase/queries/index_check.sql` | partial index confirmed at 40k rows |
+| `ingest/fetch-issues.mjs` | mirrored 400 real rows from `supabase/supabase` |
+| `scripts/rls-report.mjs` | 7 policy checks, all passing |
 
 The two check files run inside a transaction the runner rolls back, so they
 prove the schema works without leaving rows behind:
@@ -185,6 +187,26 @@ argument for the index, and it is reproducible rather than asserted.
   schema and quietly returned two rows, one per schema. The fix is in the file,
   and the mistake is now part of the lesson.
 
-**Not yet exercised:** the ingest script against a live project (it needs a
-service role key) and the web dashboard against real data. The schema it reads
-from is verified; the round trip through PostgREST is not.
+**The policies are checked from the roles that matter.** `scripts/rls-report.mjs`
+creates two engineers and a note for each inside a rolled-back transaction, then
+asks what each role can see:
+
+```
+PASS  anon: issues in queue           67   owner sees 67
+PASS  anon: labels readable           24   public read policy
+PASS  anon: search hits               13   security invoker function
+PASS  anon: triage notes               0   2 exist, 0 visible
+PASS  ada: triage notes                1   sees only her own of 2
+PASS  grace: triage notes              1   sees only her own of 2
+PASS  ada: writing as grace      blocked   with check clause
+```
+
+The seeding matters. With an empty table, "anon sees 0 notes" passes while
+proving nothing — so the script inserts two notes under different users first.
+Checking a policy from the owner account, which bypasses RLS entirely, is the
+most common false positive in Supabase support: it is exactly the "works in the
+SQL editor, returns `[]` in the app" report, seen from the other side.
+
+**Not yet exercised:** the web dashboard in a browser. Everything it reads —
+the view, the search function, the policies as `anon` — is verified from the
+database side, but the React app has not been pointed at a live project.
