@@ -103,6 +103,19 @@ npm run ingest -- --repo supabase/supabase --max-pages 5
 Re-run it any time; it picks up where it left off. `npm run ingest:full` walks
 from the beginning.
 
+Pull requests are skipped. GitHub's issues endpoint hands them back mixed in
+with issues and offers no way to ask for one and not the other, and on
+`supabase/supabase` they outnumber issues nine to one — keeping them would be
+most of the database for rows the queue hides anyway. `--include-prs` stores
+them if you want them.
+
+GitHub also refuses offset pagination past 10,000 items. A long backfill stops
+at that point with `offset pagination exhausted` and asks to be re-run; each
+run opens a fresh window from the saved cursor, so repeating it walks the whole
+history a slice at a time. Rows are written a page at a time rather than once
+at the end, so a run that stops early keeps everything it already fetched and
+leaves the cursor where the next one should resume.
+
 **4. Start the dashboard.**
 
 ```bash
