@@ -63,8 +63,21 @@ Three decisions worth pointing at:
 
 You need a Supabase project (the free tier is enough) and Node 20.6+.
 
-**1. Create the schema.** In the Supabase SQL editor, run
-`supabase/migrations/0001_schema.sql`, then `0002_search.sql`.
+**1. Create the schema.** Either paste `supabase/migrations/0001_schema.sql`
+and then `0002_search.sql` into the Supabase SQL editor, or set `DATABASE_URL`
+in `.env` (Project settings -> Database -> Connection string -> **Session
+pooler**, port 5432) and run them from here:
+
+```bash
+npm install
+npm run db:migrate     # 0001 then 0002
+npm run db:reset       # drop everything first, then re-run both
+```
+
+`scripts/run-sql.mjs` sends each file as a single simple query, the way `psql -f`
+does, because the files contain dollar-quoted function bodies that splitting on
+`;` would cut through. When the server rejects something it maps the error
+position back to `file:line:column` and prints the offending line.
 
 **2. Fill in the ingest credentials.**
 
@@ -108,6 +121,8 @@ magic link, because RLS ties every note to the engineer who wrote it.
 it runs on any Postgres 14+.
 
 ```bash
+npm run drills                  # seed, then every worked answer
+# or, with a psql client:
 psql "$DATABASE_URL" -f drills/00_seed.sql
 ```
 
