@@ -147,6 +147,7 @@ tier), not just reviewed:
 | `supabase/queries/index_check.sql` | partial index confirmed at 40k rows |
 | `ingest/fetch-issues.mjs` | mirrored 400 real rows from `supabase/supabase` |
 | `scripts/rls-report.mjs` | 7 policy checks, all passing |
+| `web/` dashboard | loaded against the live project, no console errors |
 
 The two check files run inside a transaction the runner rolls back, so they
 prove the schema works without leaving rows behind:
@@ -207,6 +208,18 @@ Checking a policy from the owner account, which bypasses RLS entirely, is the
 most common false positive in Supabase support: it is exactly the "works in the
 SQL editor, returns `[]` in the app" report, seen from the other side.
 
-**Not yet exercised:** the web dashboard in a browser. Everything it reads —
-the view, the search function, the policies as `anon` — is verified from the
-database side, but the React app has not been pointed at a live project.
+**The dashboard runs against the live project.** With 67 mirrored issues (18 of
+them open), the queue renders, `label_names` arrives as a real array rather than
+a string, the label filter narrows 18 rows to 4, every at-risk row is flagged,
+and the console is clean.
+
+**A fourth bug, which only the browser could have found.** Searching
+"self hosted password" returned two results, one of them with no highlighting.
+The index is built from `title || body`, but `ts_headline` was being given the
+body alone — so a row matching on its *title* came back with no highlight and a
+snippet of whatever its body happened to open with. Every database-side check
+passed, because the row was correctly found; only looking at the page showed the
+snippet was useless. `ts_headline` now reads the same text the index does.
+
+The lesson generalises: `ts_rank` and `ts_headline` must be fed identical text,
+or search silently returns correct rows with misleading context.
