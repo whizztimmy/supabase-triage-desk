@@ -1,0 +1,22 @@
+{
+  "name": "supabase-triage-desk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mirrors GitHub issue activity into Supabase Postgres and serves a support triage queue.",
+  "scripts": {
+    "ingest": "node --env-file=.env ingest/fetch-issues.mjs",
+    "ingest:full": "node --env-file=.env ingest/fetch-issues.mjs --full --max-pages 50",
+    "sql": "node --env-file=.env scripts/run-sql.mjs",
+    "db:migrate": "node --env-file=.env scripts/run-sql.mjs supabase/migrations/0001_schema.sql supabase/migrations/0002_search.sql",
+    "db:reset": "node --env-file=.env scripts/run-sql.mjs supabase/migrations/0000_reset.sql supabase/migrations/0001_schema.sql supabase/migrations/0002_search.sql",
+    "drills": "node --env-file=.env scripts/run-sql.mjs drills/00_seed.sql drills/answers.sql"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.4",
+    "pg": "8.13.0"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}
