@@ -38,9 +38,13 @@ as $$
     i.created_at,
     i.comment_count,
     ts_rank(i.search_tsv, query.tsq) as rank,
+    -- ts_headline must be given exactly the text search_tsv was built from:
+    -- title AND body, same 20000-char window. Highlighting the body alone looks
+    -- fine until a row matches on its title only — then the row comes back with
+    -- no highlight and a snippet of whatever the body happens to open with.
     ts_headline(
       'english',
-      coalesce(left(i.body, 4000), ''),
+      coalesce(i.title, '') || ' — ' || coalesce(left(i.body, 20000), ''),
       query.tsq,
       'MaxWords=40, MinWords=20, ShortWord=3, MaxFragments=2'
     ) as snippet
