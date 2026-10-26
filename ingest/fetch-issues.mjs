@@ -14,13 +14,20 @@ const PAGE_SIZE = 100;
 const CHUNK = 500; // rows per upsert request
 
 function parseArgs(argv) {
-  const args = { repo: 'supabase/supabase', maxPages: 10, full: false, since: null };
+  const args = {
+    repo: 'supabase/supabase',
+    maxPages: 10,
+    full: false,
+    since: null,
+    includePrs: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--repo') args.repo = argv[++i];
     else if (arg === '--max-pages') args.maxPages = Number(argv[++i]);
     else if (arg === '--since') args.since = argv[++i];
     else if (arg === '--full') args.full = true;
+    else if (arg === '--include-prs') args.includePrs = true;
     else if (arg === '--help' || arg === '-h') args.help = true;
     else throw new Error(`unknown flag: ${arg}`);
   }
@@ -40,6 +47,7 @@ Usage: node --env-file=.env ingest/fetch-issues.mjs [options]
   --max-pages N       stop after N pages of 100 (default: 10)
   --since ISO8601     override the saved cursor
   --full              ignore the cursor, walk from the start
+  --include-prs       store pull requests too  (default: issues only)
 
 Environment:
   SUPABASE_URL                 project URL
@@ -167,6 +175,24 @@ function dedupeBy(rows, key) {
   return [...seen.values()];
 }
 
+/** One page's worth of rows, parents before children. */
+async function storeBatch(db, { authors, labels, issues, issueLabels }) {
+  await upsertChunked(db, 'authors', dedupeBy(authors, 'login'), 'login');
+  await upsertChunked(db, 'labels', dedupeBy(labels, 'name'), 'name');
+  await upsertChunked(db, 'issues', dedupeBy(issues, 'id'), 'id');
+
+  // Labels get removed from issues too, so replace the set rather than merge it.
+  const touched = [...new Set(issues.map((issue) => issue.id))];
+  for (let i = 0; i < touched.length; i += CHUNK) {
+    const { error } = await db
+      .from('issue_labels')
+      .delete()
+      .in('issue_id', touched.slice(i, i + CHUNK));
+    if (error) throw new Error(`clearing issue_labels failed: ${error.message}`);
+  }
+  await upsertChunked(db, 'issue_labels', issueLabels, 'issue_id,label_name');
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -189,10 +215,11 @@ async function main() {
     `Mirroring ${args.repo}${since ? ` updated since ${since}` : ' from the beginning'}`,
   );
 
-  const authors = [];
-  const labels = [];
-  const issues = [];
-  const issueLabels = [];
+  const seenAuthors = new Set();
+  const seenLabels = new Set();
+  let storedIssues = 0;
+  let skippedPrs = 0;
+  let exhausted = false;
 
   for (let page = 1; page <= args.maxPages; page += 1) {
     const url = new URL(`${GITHUB_API}/repos/${args.repo}/issues`);
@@ -203,14 +230,41 @@ async function main() {
     url.searchParams.set('direction', 'asc');
     if (since) url.searchParams.set('since', since);
 
-    const response = await githubFetch(url, token);
+    let response;
+    try {
+      response = await githubFetch(url, token);
+    } catch (error) {
+      // GitHub refuses offset pagination past 10,000 items. The `since` cursor
+      // is the way around it: the next run opens a fresh window starting where
+      // this one stopped, and the page counter begins again at 1.
+      if (/cursor based pagination/i.test(error.message)) {
+        console.log(`  page ${page}: offset pagination exhausted, stopping here`);
+        exhausted = true;
+        break;
+      }
+      throw error;
+    }
+
     const batch = await response.json();
     if (!Array.isArray(batch) || batch.length === 0) {
       console.log(`  page ${page}: empty, stopping`);
       break;
     }
 
+    const authors = [];
+    const labels = [];
+    const issues = [];
+    const issueLabels = [];
+
     for (const raw of batch) {
+      // The endpoint returns pull requests mixed in with issues and offers no
+      // way to ask for one and not the other. The queue hides them, and on
+      // supabase/supabase they outnumber issues nine to one, so storing them
+      // is most of the database for none of the value.
+      if (raw.pull_request && !args.includePrs) {
+        skippedPrs += 1;
+        continue;
+      }
       const { author, labels: issueLabelRows, issue } = shape(raw, args.repo);
       if (author) authors.push(author);
       for (const label of issueLabelRows) {
@@ -220,36 +274,37 @@ async function main() {
       issues.push(issue);
     }
 
-    console.log(`  page ${page}: ${batch.length} issues`);
+    // Written a page at a time rather than once at the end. A long walk that
+    // fails partway then keeps everything it already fetched, and leaves the
+    // cursor where the next run should pick up.
+    if (issues.length > 0) {
+      await storeBatch(db, { authors, labels, issues, issueLabels });
+      storedIssues += issues.length;
+      for (const author of authors) seenAuthors.add(author.login);
+      for (const label of labels) seenLabels.add(label.name);
+    }
+
+    console.log(`  page ${page}: ${batch.length} fetched, ${issues.length} stored`);
     if (batch.length < PAGE_SIZE) break;
   }
 
-  if (issues.length === 0) {
-    console.log('Nothing new.');
-    return;
+  if (storedIssues === 0) {
+    console.log(
+      skippedPrs > 0
+        ? `Nothing new (skipped ${skippedPrs} pull requests).`
+        : 'Nothing new.',
+    );
+  } else {
+    console.log(
+      `Stored ${storedIssues} issues, ${seenAuthors.size} authors, ` +
+        `${seenLabels.size} labels` +
+        (skippedPrs > 0 ? `, skipped ${skippedPrs} pull requests.` : '.'),
+    );
   }
 
-  // Parents before children, so the foreign keys always have something to point at.
-  await upsertChunked(db, 'authors', dedupeBy(authors, 'login'), 'login');
-  await upsertChunked(db, 'labels', dedupeBy(labels, 'name'), 'name');
-  await upsertChunked(db, 'issues', dedupeBy(issues, 'id'), 'id');
-
-  // Labels get removed from issues too, so replace the set rather than merging it.
-  const touched = [...new Set(issues.map((issue) => issue.id))];
-  for (let i = 0; i < touched.length; i += CHUNK) {
-    const { error } = await db
-      .from('issue_labels')
-      .delete()
-      .in('issue_id', touched.slice(i, i + CHUNK));
-    if (error) throw new Error(`clearing issue_labels failed: ${error.message}`);
+  if (exhausted) {
+    console.log('Re-run to continue from the new cursor.');
   }
-  await upsertChunked(db, 'issue_labels', issueLabels, 'issue_id,label_name');
-
-  const prCount = issues.filter((issue) => issue.is_pull_request).length;
-  console.log(
-    `Stored ${issues.length} rows (${issues.length - prCount} issues, ${prCount} PRs), ` +
-      `${dedupeBy(authors, 'login').length} authors, ${dedupeBy(labels, 'name').length} labels.`,
-  );
 }
 
 main().catch((error) => {
