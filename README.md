@@ -1,5 +1,9 @@
 # Triage Desk
 
+**Live demo — [supabase-triage-desk-hhsu.vercel.app](https://supabase-triage-desk-hhsu.vercel.app)**
+The queue, the filters and the prior-art search are readable without an
+account; signing in with a magic link is only needed to write a triage note.
+
 A support engineer's working tool, built on Supabase. It mirrors a public
 repository's GitHub issues into Postgres, then puts a queue in front of them:
 what is open, what nobody has answered yet, what has been waiting too long, and
@@ -123,6 +127,10 @@ wired up, so there is nothing to configure in the dashboard:
 ```bash
 npx vercel          # or import the repo at vercel.com/new
 ```
+
+Leave **Root Directory** empty when importing. `vercel.json` lives at the
+repository root and its paths resolve from there; setting the root to `web`
+makes `--prefix web` resolve to `web/web` and the install fails.
 
 It installs and builds inside `web/` and publishes `web/dist`. Note that
 `web/package.json` runs `tsc --noEmit` before `vite build`, so a type error
