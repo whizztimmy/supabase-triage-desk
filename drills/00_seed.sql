@@ -206,7 +206,9 @@ where random() < 0.6;
 create index issues_created_at_idx on issues (created_at desc);
 create index triage_notes_issue_idx on triage_notes (issue_id);
 
-analyze;
+-- Scoped to the drill tables: a bare `analyze` also walks the system catalogs,
+-- which a non-superuser cannot read, producing a wall of permission notices.
+analyze orgs, projects, invoices, authors, labels, issues, issue_labels, triage_notes;
 
 commit;
 

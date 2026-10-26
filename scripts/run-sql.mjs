@@ -60,9 +60,19 @@ function describe(result) {
   return result.command ?? 'ok';
 }
 
-/** Print the first few rows of the last SELECT, which is usually a sanity check. */
+const isPlan = (result) => Boolean(result?.rows?.[0] && 'QUERY PLAN' in result.rows[0]);
+
+/** A query plan is the whole point of running it, so never truncate one. */
+function printPlans(results) {
+  for (const result of results.filter(isPlan)) {
+    console.log('    --- query plan ---');
+    for (const row of result.rows) console.log(`    ${row['QUERY PLAN']}`);
+  }
+}
+
+/** Print the first few rows of the last non-plan SELECT, as a sanity check. */
 function printSample(results) {
-  const selects = results.filter((r) => r?.rows?.length);
+  const selects = results.filter((r) => r?.rows?.length && !isPlan(r));
   const last = selects[selects.length - 1];
   if (!last) return;
   console.log(`    last result: ${JSON.stringify(last.rows.slice(0, 3))}`);
@@ -83,6 +93,7 @@ async function runFile(client, file, { dryRun, quiet }) {
     if (!quiet) {
       for (const result of results) console.log(`    ${describe(result)}`);
     }
+    printPlans(results);
     printSample(results);
     console.log(`  ✓ ${label}: ${results.length} statement(s) ran`);
 

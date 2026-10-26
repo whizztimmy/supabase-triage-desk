@@ -279,7 +279,14 @@ thresholds as (
   from labelled
   group by label_name
 )
-select l.number, left(l.title, 60) as title, l.label_name, l.comment_count, round(t.p95, 1) as p95
+select
+  l.number,
+  left(l.title, 60) as title,
+  l.label_name,
+  l.comment_count,
+  -- percentile_cont over an integer column returns double precision, and
+  -- round(double precision, int) does not exist in Postgres. Cast first.
+  round(t.p95::numeric, 1) as p95
 from labelled l
 join thresholds t on t.label_name = l.label_name
 where l.comment_count > t.p95
@@ -448,7 +455,15 @@ analyze triage_notes;
 --     for anything a user sees as a number. It is also -1 on a table that has
 --     never been analyzed.
 select count(*) as exact_count from issues;
-select reltuples::bigint as estimated_count from pg_class where relname = 'issues';
+
+-- Note the schema qualification: `where relname = 'issues'` alone matches
+-- BOTH drill.issues and public.issues and quietly returns two rows. A bare
+-- relname lookup is a bug waiting to happen on any database with more than
+-- one schema.
+select reltuples::bigint as estimated_count
+from pg_class
+where relname = 'issues'
+  and relnamespace = 'drill'::regnamespace;
 
 -- ===========================================================================
 -- Supabase-specific: row level security
@@ -478,16 +493,22 @@ select reltuples::bigint as estimated_count from pg_class where relname = 'issue
 --     The policy on `documents` queries `documents`, so evaluating the policy
 --     requires evaluating the policy. (The example also shadows `team_id`, which
 --     makes the subquery trivially true — a second bug.) Two ways out:
---       (a) Do not self-reference. Compare against the row's own column:
-create or replace function current_team_ids()
-returns setof uuid
-language sql
-stable
-security definer
-set search_path = public  -- always pin this on a security definer function
-as $$
-  select team_id from team_members where user_id = auth.uid();
-$$;
+--       (a) Do not self-reference. Compare against the row's own column, with
+--           the membership lookup pushed into a function over a DIFFERENT table.
+--           (Illustrative: `team_members` is the customer's table, not ours, so
+--           this is written out rather than executed. Postgres validates a SQL
+--           function body at creation time, so running it here would fail.)
+--
+--            create or replace function current_team_ids()
+--            returns setof uuid
+--            language sql
+--            stable
+--            security definer
+--            set search_path = public  -- always pin this on a definer function
+--            as $$
+--              select team_id from team_members where user_id = auth.uid();
+--            $$;
+--
 --          then:
 --            create policy "team members can read" on documents for select
 --              using (team_id in (select current_team_ids()));
