@@ -114,6 +114,71 @@ magic link, because RLS ties every note to the engineer who wrote it.
 **5. Try the analytics.** Paste anything from
 `supabase/queries/triage_queries.sql` into the SQL editor.
 
+## Deploying the dashboard
+
+`web/` builds to a static bundle — no server, no API routes, no service role key
+in the browser — so any static host will serve it. `vercel.json` has the build
+wired up, so there is nothing to configure in the dashboard:
+
+```bash
+npx vercel          # or import the repo at vercel.com/new
+```
+
+It installs and builds inside `web/` and publishes `web/dist`. Note that
+`web/package.json` runs `tsc --noEmit` before `vite build`, so a type error
+fails the deploy rather than shipping a broken bundle.
+
+Set the two client variables in the Vercel project (Settings -> Environment
+Variables) — the same pair `web/.env` holds locally:
+
+| Variable | Where it comes from |
+| --- | --- |
+| `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Project settings -> API -> `anon` `public` |
+
+Vite inlines every `VITE_`-prefixed variable into the bundle at build time, so
+both are readable by anyone who views source. That is correct for these two and
+only these two: the anon key is a public identifier, and RLS is what actually
+decides what it can read — the property `scripts/rls-report.mjs` verifies. The
+service role key in the root `.env` must never be set here, because it bypasses
+RLS entirely.
+
+**Point Supabase Auth at the deployed URL before sharing the link.** Sign-in
+uses `signInWithOtp`, and Supabase builds that email link from Authentication ->
+URL Configuration -> **Site URL**. Left at `http://localhost:5173`, every magic
+link sent to a real visitor redirects to their own machine and fails. Set Site
+URL to the deployed origin, and add both it and `http://localhost:5173` to
+**Redirect URLs** so local development keeps working.
+
+Two more things worth knowing before the link goes anywhere:
+
+- **Free-tier projects pause after about a week of inactivity**, and a paused
+  project answers with a connection error. A link that worked when you sent it
+  can be dead when someone opens it.
+- **The built-in email sender is rate limited** to a handful of messages an
+  hour. That does not block a visitor, because the `public read` policies in
+  `0001_schema.sql` leave the queue, the filters and the search readable by
+  `anon` — the interesting half of the app needs no account at all. Only
+  writing a triage note does.
+
+`ingest/`, `scripts/` and `drills/` are not part of the deployment. They run
+locally against `DATABASE_URL` and the service role key, and the hosted project
+needs the migrations applied and some rows mirrored before the dashboard has
+anything to show.
+
+### Netlify instead
+
+The same bundle, configured in the UI rather than in the repo:
+
+| Setting | Value |
+| --- | --- |
+| Base directory | `web` |
+| Build command | `npm run build` |
+| Publish directory | `dist` (relative to the base directory) |
+
+Everything above about the environment variables and the Auth Site URL applies
+unchanged.
+
 ## The drills
 
 `drills/` is a separate thing: a PostgreSQL practice set in a self-contained
