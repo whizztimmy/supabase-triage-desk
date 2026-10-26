@@ -134,7 +134,57 @@ written out — which index serves it, and what breaks at 50 million rows.
 
 ## Status
 
-The web app builds clean (`tsc --noEmit && vite build`). The SQL has not been
-executed yet — there's no Postgres on the machine it was written on, so the
-migrations, queries and drills are reviewed but unrun. First thing to do is paste
-`0001_schema.sql` into a real project and fix whatever it complains about.
+Everything below was run against a real Supabase project (Postgres 17.11, free
+tier), not just reviewed:
+
+| What | Result |
+| --- | --- |
+| `0001_schema.sql`, `0002_search.sql` | apply clean, 30 and 4 statements |
+| `drills/00_seed.sql` | 500 orgs, 1,400 projects, 4,000 invoices, 6,000 issues, 12,682 label rows, 3,649 triage notes |
+| `drills/answers.sql` | 39 statements, clean |
+| `supabase/queries/triage_queries.sql` | 9 statements, clean |
+| `supabase/queries/smoke_test.sql` | views and search behave as documented |
+| `supabase/queries/index_check.sql` | partial index confirmed at 40k rows |
+
+The two check files run inside a transaction the runner rolls back, so they
+prove the schema works without leaving rows behind:
+
+```bash
+node --env-file=.env scripts/run-sql.mjs --dry-run supabase/queries/smoke_test.sql
+node --env-file=.env scripts/run-sql.mjs --dry-run supabase/queries/index_check.sql
+```
+
+`index_check.sql` is the one worth reading. At 40,000 rows the queue's default
+query plans as:
+
+```
+Limit  ->  Index Scan using issues_open_recent_idx on issues
+           Buffers: shared hit=97      Execution Time: 0.247 ms
+```
+
+while the same question phrased as `where lower(state) = 'open'`, which the
+partial index cannot serve, falls back to:
+
+```
+Limit  ->  Sort  ->  Seq Scan on issues
+           Buffers: shared hit=4104    Execution Time: 57.482 ms
+```
+
+Forty-two times the buffer reads for the same fifty rows. That contrast is the
+argument for the index, and it is reproducible rather than asserted.
+
+**Three bugs the database caught**, now fixed:
+
+- Drill 19 called `round(double precision, int)`, which does not exist in
+  Postgres — `percentile_cont` over an integer column returns double precision
+  and needs an explicit `::numeric`.
+- Drill 32's example function referenced a customer's own table. Postgres
+  validates a SQL function body at creation time, so it failed; it is written
+  out as commented SQL now, like the rest of that section.
+- Drill 30 looked up `pg_class where relname = 'issues'` without qualifying the
+  schema and quietly returned two rows, one per schema. The fix is in the file,
+  and the mistake is now part of the lesson.
+
+**Not yet exercised:** the ingest script against a live project (it needs a
+service role key) and the web dashboard against real data. The schema it reads
+from is verified; the round trip through PostgREST is not.
