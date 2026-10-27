@@ -109,12 +109,12 @@ with issues and offers no way to ask for one and not the other, and on
 most of the database for rows the queue hides anyway. `--include-prs` stores
 them if you want them.
 
-GitHub also refuses offset pagination past 10,000 items. A long backfill stops
-at that point with `offset pagination exhausted` and asks to be re-run; each
-run opens a fresh window from the saved cursor, so repeating it walks the whole
-history a slice at a time. Rows are written a page at a time rather than once
-at the end, so a run that stops early keeps everything it already fetched and
-leaves the cursor where the next one should resume.
+GitHub also refuses offset pagination past 10,000 items, so the walk slides its
+`since` window rather than paging deeper: when a window runs out of pages the
+cursor moves to the last row fetched and paging restarts at one. That is what
+lets `--full` cover a history of any size in a single run. Rows are written a
+page at a time rather than once at the end, so a run that stops early keeps
+everything it already fetched.
 
 **4. Start the dashboard.**
 

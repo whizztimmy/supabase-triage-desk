@@ -221,24 +221,30 @@ async function main() {
   let skippedPrs = 0;
   let exhausted = false;
 
-  for (let page = 1; page <= args.maxPages; page += 1) {
+  // GitHub refuses offset pagination past 10,000 items, so the walk cannot
+  // simply page deeper. When a window runs out of pages it slides instead:
+  // `since` moves to the last row fetched and paging restarts at one. That is
+  // what lets --full cover a history of any size in a single run.
+  const WINDOW_PAGES = 99;
+  let cursor = since;
+  let page = 1;
+  let pagesUsed = 0;
+
+  while (pagesUsed < args.maxPages) {
     const url = new URL(`${GITHUB_API}/repos/${args.repo}/issues`);
     url.searchParams.set('state', 'all');
     url.searchParams.set('per_page', String(PAGE_SIZE));
     url.searchParams.set('page', String(page));
     url.searchParams.set('sort', 'updated');
     url.searchParams.set('direction', 'asc');
-    if (since) url.searchParams.set('since', since);
+    if (cursor) url.searchParams.set('since', cursor);
 
     let response;
     try {
       response = await githubFetch(url, token);
     } catch (error) {
-      // GitHub refuses offset pagination past 10,000 items. The `since` cursor
-      // is the way around it: the next run opens a fresh window starting where
-      // this one stopped, and the page counter begins again at 1.
       if (/cursor based pagination/i.test(error.message)) {
-        console.log(`  page ${page}: offset pagination exhausted, stopping here`);
+        console.log(`  offset pagination refused at page ${page}; stopping`);
         exhausted = true;
         break;
       }
@@ -247,7 +253,7 @@ async function main() {
 
     const batch = await response.json();
     if (!Array.isArray(batch) || batch.length === 0) {
-      console.log(`  page ${page}: empty, stopping`);
+      console.log('  empty page, stopping');
       break;
     }
 
@@ -259,7 +265,7 @@ async function main() {
     for (const raw of batch) {
       // The endpoint returns pull requests mixed in with issues and offers no
       // way to ask for one and not the other. The queue hides them, and on
-      // supabase/supabase they outnumber issues nine to one, so storing them
+      // supabase/supabase they outnumber issues four to one, so storing them
       // is most of the database for none of the value.
       if (raw.pull_request && !args.includePrs) {
         skippedPrs += 1;
@@ -275,8 +281,7 @@ async function main() {
     }
 
     // Written a page at a time rather than once at the end. A long walk that
-    // fails partway then keeps everything it already fetched, and leaves the
-    // cursor where the next run should pick up.
+    // fails partway then keeps everything it already fetched.
     if (issues.length > 0) {
       await storeBatch(db, { authors, labels, issues, issueLabels });
       storedIssues += issues.length;
@@ -284,8 +289,23 @@ async function main() {
       for (const label of labels) seenLabels.add(label.name);
     }
 
-    console.log(`  page ${page}: ${batch.length} fetched, ${issues.length} stored`);
+    pagesUsed += 1;
+    console.log(`  page ${pagesUsed}: ${batch.length} fetched, ${issues.length} stored`);
     if (batch.length < PAGE_SIZE) break;
+
+    if (page >= WINDOW_PAGES) {
+      const last = batch[batch.length - 1].updated_at;
+      // Identical timestamps across a whole window would otherwise spin here.
+      if (last === cursor) {
+        console.log('  window did not advance, stopping');
+        break;
+      }
+      cursor = last;
+      page = 1;
+      console.log(`  window slid to ${cursor}`);
+    } else {
+      page += 1;
+    }
   }
 
   if (storedIssues === 0) {
