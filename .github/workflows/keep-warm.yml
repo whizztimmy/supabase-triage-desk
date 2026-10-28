@@ -23,8 +23,13 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ]; then
-            echo "::error::Add the SUPABASE_URL and SUPABASE_ANON_KEY repository secrets."
+          missing=""
+          if [ -z "${SUPABASE_URL:-}" ]; then missing="SUPABASE_URL"; fi
+          if [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            missing="${missing:+$missing and }SUPABASE_ANON_KEY"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::Empty secret(s): $missing. They belong in Settings ->"                 "Secrets and variables -> Actions -> *Secrets* tab -> Repository"                 "secrets. Values saved under the Variables tab, under Dependabot,"                 "or as Environment secrets are not visible to this job."
             exit 1
           fi
           code=$(curl -sS -o /dev/null -w '%{http_code}' \
