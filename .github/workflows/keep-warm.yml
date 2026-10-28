@@ -13,6 +13,11 @@ on:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    # Both secrets live inside an environment of this name rather than at the
+    # repository level, and a job only sees environment secrets when it says
+    # which environment it runs in. Rename the environment and this line
+    # together, or move the secrets to repository scope and drop this.
+    environment: SUPABASE_URL
     steps:
       - name: Read one row through PostgREST
         env:
