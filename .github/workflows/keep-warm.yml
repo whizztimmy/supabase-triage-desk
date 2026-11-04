@@ -1,13 +1,19 @@
 name: Keep warm
 
-# Free tier Supabase projects pause after about a week without database
-# activity, and a paused project answers with a connection error. This runs a
-# trivial read often enough that the clock never gets close.
+# Free tier Supabase projects pause after about a week without activity, and a
+# paused project loses its DNS record: the hostname stops resolving, so the
+# dashboard shows "Failed to fetch" rather than an error anyone can read.
+#
+# This does NOT reliably prevent that. On 4 Nov 2026 the project paused while
+# this workflow was passing every two to four days, so a PostgREST read does
+# not appear to reset the inactivity clock. Treat it as a smoke alarm rather
+# than a sprinkler: daily, so a pause shows up as a failed run within a day and
+# GitHub emails about it. Before the link matters, open it yourself.
 
 on:
   schedule:
-    # 07:00 UTC Monday and Thursday: never more than four days apart.
-    - cron: '0 7 * * 1,4'
+    # 07:00 UTC daily. Detection, not prevention: see above.
+    - cron: '0 7 * * *'
   workflow_dispatch:
 
 jobs:
