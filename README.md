@@ -189,13 +189,20 @@ anything to show.
 
 ### Keeping it awake
 
-`.github/workflows/keep-warm.yml` reads a single row through PostgREST every
-Monday and Thursday, which keeps the pause clock from ever approaching seven
-days. It also checks that the deployed page still answers 200, so a broken
-deploy surfaces as a failed workflow run rather than as a dead link in someone
-else's hands.
+`.github/workflows/keep-warm.yml` reads a single row through PostgREST daily
+and checks that the deployed page still answers 200.
 
-It needs two repository secrets (Settings -> Secrets and variables -> Actions):
+It does not reliably stop the project pausing. On 4 November 2026 it paused
+while this workflow was passing every two to four days, so a PostgREST read
+does not appear to reset the inactivity clock. What the workflow buys is
+detection: a pause becomes a failed run within a day, and GitHub emails about
+it, instead of the demo quietly serving an empty page for however long nobody
+looks. Before the link matters to you, open it yourself.
+
+It needs two secrets. They can sit at repository scope (Settings -> Secrets and
+variables -> Actions -> Repository secrets), or inside an environment that the
+job names — this repository uses an environment called `SUPABASE_URL`, which is
+why the job declares `environment: SUPABASE_URL`:
 
 | Secret | Value |
 | --- | --- |
@@ -203,8 +210,8 @@ It needs two repository secrets (Settings -> Secrets and variables -> Actions):
 | `SUPABASE_ANON_KEY` | the same public anon key the browser bundle carries |
 
 Run it once by hand from the Actions tab to confirm the secrets are right.
-Without them the job fails with a message saying so, rather than passing
-quietly and letting the project sleep.
+Without them the job fails with a message naming the empty ones, rather than
+passing quietly.
 
 One caveat: GitHub disables scheduled workflows in a repository that has had no
 commits for 60 days, and emails to say so. Re-enable it from the Actions tab if
