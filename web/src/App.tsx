@@ -85,7 +85,7 @@ export default function App() {
   const loadStats = useCallback(async () => {
     const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
-    // head: true asks PostgREST for the count only — no rows cross the wire.
+    // head: true asks PostgREST for the count only, no rows cross the wire.
     const [open, untriaged, triaged] = await Promise.all([
       supabase
         .from('issue_queue')

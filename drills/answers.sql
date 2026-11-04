@@ -2,12 +2,12 @@
 -- Run 00_seed.sql first, then: set search_path = drill, public;
 --
 -- Where a question asks for reasoning rather than SQL, the reasoning is in the
--- comment. Say it out loud before you read it — the screen asks you to explain.
+-- comment. Say it out loud before you read it: the screen asks you to explain.
 
 set search_path = drill, public;
 
 -- ===========================================================================
--- Tier 1 — joins, filters, aggregates
+-- Tier 1: joins, filters, aggregates
 -- ===========================================================================
 
 -- 1. Open vs closed, one row.
@@ -58,13 +58,13 @@ group by o.region
 order by paid_usd desc;
 
 -- 6. Issues with no labels, two ways.
---    (a) not exists — stops at the first match, and the planner turns it into an
+--    (a) not exists stops at the first match, and the planner turns it into an
 --        anti-join. This is the one to reach for.
 select count(*)
 from issues i
 where not exists (select 1 from issue_labels il where il.issue_id = i.id);
 
---    (b) left join ... is null — same result, but it has to materialise the join
+--    (b) left join ... is null: same result, but it has to materialise the join
 --        first. Equivalent on small tables, worse when a row has many labels.
 select count(*)
 from issues i
@@ -134,7 +134,7 @@ where rn <= 5
 order by region, db_size_mb desc;
 
 -- ===========================================================================
--- Tier 2 — CTEs and window functions
+-- Tier 2: CTEs and window functions
 -- ===========================================================================
 
 -- 11. Time to first triage, and its percentiles.
@@ -319,7 +319,7 @@ order by h.lifetime_paid desc
 limit 20;
 
 -- ===========================================================================
--- Tier 3 — JSONB, arrays, text search
+-- Tier 3: JSONB, arrays, text search
 -- ===========================================================================
 
 -- 21. Issues per client.
@@ -358,7 +358,7 @@ create index if not exists issues_plus_one_idx
 create index if not exists issues_payload_gin_idx on issues using gin (payload);
 
 -- 24. "RLS" and "timeout" together, via full text search.
---     ILIKE '%...%' cannot use a B-tree at all — it is a sequential scan plus a
+--     ILIKE '%...%' cannot use a B-tree at all: it is a sequential scan plus a
 --     per-row regex. to_tsvector + GIN turns it into an index lookup on lexemes,
 --     and gets stemming ("timeout"/"timeouts") for free.
 create index if not exists issues_fts_idx
@@ -398,11 +398,11 @@ where body ilike '%service role%'
 limit 20;
 
 -- ===========================================================================
--- Tier 4 — performance and EXPLAIN
+-- Tier 4: performance and EXPLAIN
 -- ===========================================================================
 
 -- 27. Why no plain B-tree on title helps `where lower(title) like 'rls%'`:
---     the index stores `title`, the predicate asks about `lower(title)` — a
+--     the index stores `title`, the predicate asks about `lower(title)`, a
 --     different value, so the index cannot be matched. Two fixes:
 --       (a) an expression index that stores exactly what the predicate computes:
 create index if not exists issues_lower_title_idx on issues (lower(title) text_pattern_ops);
@@ -428,7 +428,7 @@ create index if not exists triage_notes_issue_created_idx
   on triage_notes (issue_id, created_at);
 
 analyze triage_notes;
---     Re-run the EXPLAIN and compare `shared read` in the buffers line — fewer
+--     Re-run the EXPLAIN and compare `shared read` in the buffers line: fewer
 --     blocks read is the thing to point at, not just a smaller wall time, which
 --     moves around with cache state.
 
@@ -448,7 +448,7 @@ analyze triage_notes;
 --         warms up; a different node type than before is a real plan change.
 
 -- 30. count(*) vs reltuples.
---     count(*) is exact and costs a full scan — on a large table that is seconds
+--     count(*) is exact and costs a full scan, and on a large table that is seconds
 --     to minutes, and it is MVCC-correct for your snapshot.
 --     reltuples is an estimate maintained by ANALYZE and vacuum, free to read,
 --     and stale between runs. Use it for "roughly how big is this?" and never
@@ -492,7 +492,7 @@ where relname = 'issues'
 -- 32. 42P17 infinite recursion.
 --     The policy on `documents` queries `documents`, so evaluating the policy
 --     requires evaluating the policy. (The example also shadows `team_id`, which
---     makes the subquery trivially true — a second bug.) Two ways out:
+--     makes the subquery trivially true, a second bug.) Two ways out:
 --       (a) Do not self-reference. Compare against the row's own column, with
 --           the membership lookup pushed into a function over a DIFFERENT table.
 --           (Illustrative: `team_members` is the customer's table, not ours, so
@@ -521,7 +521,7 @@ where relname = 'issues'
 --     use an index on user_id, and it evaluates auth.uid() once.
 --     The nested `in (select ...)` version is re-evaluated per row, because the
 --     planner treats it as correlated. Wrapping the subquery in a scalar
---     subselect — `(select ...)` — makes Postgres hoist it into an InitPlan that
+--     subselect, `(select ...)`, makes Postgres hoist it into an InitPlan that
 --     runs exactly once:
 --       using (
 --         user_id in (
@@ -535,7 +535,7 @@ where relname = 'issues'
 --       create index on profiles (org_id);
 
 -- 34. When security definer is right.
---     When the policy needs to read a table the user is not allowed to read —
+--     When the policy needs to read a table the user is not allowed to read,
 --     a membership or entitlement table. The function runs as its owner, so it
 --     sees past RLS. Two things are mandatory:
 --       - `set search_path = ...` on the function, or a caller can shadow a table
