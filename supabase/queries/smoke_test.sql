@@ -42,7 +42,7 @@ insert into issue_labels (issue_id, label_name) values
   (1, 'bug'), (1, 'rls'), (1, 'performance'), (2, 'bug');
 
 -- 1. The queue view: labels aggregated, age computed, PR excluded.
---    Expect 2 rows (not 3 — #103 is a pull request), both needing triage.
+--    Expect 2 rows (not 3, since #103 is a pull request), both needing triage.
 select number, age_hours > 0 as has_age, label_names, needs_triage
 from issue_queue
 order by number;

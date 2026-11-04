@@ -52,7 +52,7 @@ function locate(sql, position) {
 function describe(result) {
   if (!result) return 'no result';
   if (result.command === 'SELECT' || result.rows?.length) {
-    return `${result.command ?? 'SELECT'} — ${result.rowCount} row(s)`;
+    return `${result.command ?? 'SELECT'}: ${result.rowCount} row(s)`;
   }
   if (typeof result.rowCount === 'number' && result.rowCount > 0) {
     return `${result.command} ${result.rowCount}`;
@@ -99,7 +99,7 @@ async function runFile(client, file, { dryRun, quiet }) {
 
     if (dryRun) {
       await client.query('rollback');
-      console.log('  (rolled back — dry run)');
+      console.log('  (rolled back, dry run)');
     }
     return true;
   } catch (error) {

@@ -1,6 +1,6 @@
 -- Checks the policies from the role the browser actually uses, rather than from
 -- the owner account that bypasses them. This is the difference between "it
--- works in the SQL editor" and "it works in the app" — the single most common
+-- works in the SQL editor" and "it works in the app", the single most common
 -- false positive in Supabase support.
 --
 --   node --env-file=.env scripts/run-sql.mjs --dry-run supabase/queries/rls_check.sql
@@ -13,7 +13,7 @@ set search_path = public;
 select 'owner' as role, count(*) as visible_issues from issue_queue;
 
 -- PostgREST runs an unauthenticated request as `anon`. The mirrored GitHub data
--- is public, so this must match the baseline above — if it returns 0, the
+-- is public, so this must match the baseline above; if it returns 0, the
 -- dashboard shows an empty table and the cause is a missing grant or policy.
 set local role anon;
 select 'anon' as role, count(*) as visible_issues from issue_queue;

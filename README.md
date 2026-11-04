@@ -1,6 +1,6 @@
 # Triage Desk
 
-**Live demo — [supabase-triage-desk-hhsu.vercel.app](https://supabase-triage-desk-hhsu.vercel.app)**
+**Live demo: [supabase-triage-desk-hhsu.vercel.app](https://supabase-triage-desk-hhsu.vercel.app)**
 The queue, the filters and the prior-art search are readable without an
 account; signing in with a magic link is only needed to write a triage note.
 
@@ -10,7 +10,7 @@ what is open, what nobody has answered yet, what has been waiting too long, and
 whether the thing in front of you has already been reported.
 
 I built it because the hardest part of developer support isn't answering the
-question — it's knowing which of two hundred open threads to answer first, and
+question. It is knowing which of two hundred open threads to answer first, and
 finding the one from four months ago that already has the answer.
 
 ## What it does
@@ -30,7 +30,7 @@ engineer, enforced by row level security rather than by the client.
 
 **Queue analytics.** Time to first triage as a distribution rather than an
 average, label volume week over week, repeat reporters whose issues never get
-closed, and issues triaged as a docs gap that nobody labelled as one — each row
+closed, and issues triaged as a docs gap that nobody labelled as one. Each row
 there is a documentation page that should exist.
 
 ## How it's put together
@@ -43,7 +43,7 @@ ingest/fetch-issues.mjs     GitHub REST -> Postgres. Incremental: it reads the
 supabase/migrations/        Schema, indexes, views, RLS policies, and a ranked
                             search function.
 
-supabase/queries/           The analytical queries, as a file you can read —
+supabase/queries/           The analytical queries, as a file you can read,
                             the questions, not just the answers.
 
 web/                        React + TypeScript + Vite dashboard on supabase-js.
@@ -105,7 +105,7 @@ from the beginning.
 
 Pull requests are skipped. GitHub's issues endpoint hands them back mixed in
 with issues and offers no way to ask for one and not the other, and on
-`supabase/supabase` they outnumber issues nine to one — keeping them would be
+`supabase/supabase` they outnumber issues nine to one, and keeping them would be
 most of the database for rows the queue hides anyway. `--include-prs` stores
 them if you want them.
 
@@ -125,7 +125,7 @@ npm install
 npm run dev
 ```
 
-Reading the queue needs no account. Writing a triage note does — sign in with a
+Reading the queue needs no account. Writing a triage note does: sign in with a
 magic link, because RLS ties every note to the engineer who wrote it.
 
 **5. Try the analytics.** Paste anything from
@@ -133,8 +133,8 @@ magic link, because RLS ties every note to the engineer who wrote it.
 
 ## Deploying the dashboard
 
-`web/` builds to a static bundle — no server, no API routes, no service role key
-in the browser — so any static host will serve it. `vercel.json` has the build
+`web/` builds to a static bundle: no server, no API routes, no service role key
+in the browser, so any static host will serve it. `vercel.json` has the build
 wired up, so there is nothing to configure in the dashboard:
 
 ```bash
@@ -150,7 +150,7 @@ It installs and builds inside `web/` and publishes `web/dist`. Note that
 fails the deploy rather than shipping a broken bundle.
 
 Set the two client variables in the Vercel project (Settings -> Environment
-Variables) — the same pair `web/.env` holds locally:
+Variables), the same pair `web/.env` holds locally:
 
 | Variable | Where it comes from |
 | --- | --- |
@@ -160,7 +160,7 @@ Variables) — the same pair `web/.env` holds locally:
 Vite inlines every `VITE_`-prefixed variable into the bundle at build time, so
 both are readable by anyone who views source. That is correct for these two and
 only these two: the anon key is a public identifier, and RLS is what actually
-decides what it can read — the property `scripts/rls-report.mjs` verifies. The
+decides what it can read, the property `scripts/rls-report.mjs` verifies. The
 service role key in the root `.env` must never be set here, because it bypasses
 RLS entirely.
 
@@ -179,7 +179,7 @@ Two more things worth knowing before the link goes anywhere:
 - **The built-in email sender is rate limited** to a handful of messages an
   hour. That does not block a visitor, because the `public read` policies in
   `0001_schema.sql` leave the queue, the filters and the search readable by
-  `anon` — the interesting half of the app needs no account at all. Only
+  `anon`. The interesting half of the app needs no account at all. Only
   writing a triage note does.
 
 `ingest/`, `scripts/` and `drills/` are not part of the deployment. They run
@@ -201,7 +201,7 @@ looks. Before the link matters to you, open it yourself.
 
 It needs two secrets. They can sit at repository scope (Settings -> Secrets and
 variables -> Actions -> Repository secrets), or inside an environment that the
-job names — this repository uses an environment called `SUPABASE_URL`, which is
+job names. This repository uses an environment called `SUPABASE_URL`, which is
 why the job declares `environment: SUPABASE_URL`:
 
 | Secret | Value |
@@ -246,7 +246,7 @@ That builds ~6,000 issues, 500 orgs, 4,000 invoices and a deliberately sparse se
 of indexes. Then [drills/questions.md](drills/questions.md) has 35 questions in
 four tiers plus a row-level-security section, and
 [drills/answers.sql](drills/answers.sql) has worked solutions with the reasoning
-written out — which index serves it, and what breaks at 50 million rows.
+written out: which index serves it, and what breaks at 50 million rows.
 
 ## Status
 
@@ -295,7 +295,7 @@ argument for the index, and it is reproducible rather than asserted.
 **Three bugs the database caught**, now fixed:
 
 - Drill 19 called `round(double precision, int)`, which does not exist in
-  Postgres — `percentile_cont` over an integer column returns double precision
+  Postgres. `percentile_cont` over an integer column returns double precision
   and needs an explicit `::numeric`.
 - Drill 32's example function referenced a customer's own table. Postgres
   validates a SQL function body at creation time, so it failed; it is written
@@ -319,7 +319,7 @@ PASS  ada: writing as grace      blocked   with check clause
 ```
 
 The seeding matters. With an empty table, "anon sees 0 notes" passes while
-proving nothing — so the script inserts two notes under different users first.
+proving nothing, so the script inserts two notes under different users first.
 Checking a policy from the owner account, which bypasses RLS entirely, is the
 most common false positive in Supabase support: it is exactly the "works in the
 SQL editor, returns `[]` in the app" report, seen from the other side.
@@ -332,7 +332,7 @@ and the console is clean.
 **A fourth bug, which only the browser could have found.** Searching
 "self hosted password" returned two results, one of them with no highlighting.
 The index is built from `title || body`, but `ts_headline` was being given the
-body alone — so a row matching on its *title* came back with no highlight and a
+body alone, so a row matching on its *title* came back with no highlight and a
 snippet of whatever its body happened to open with. Every database-side check
 passed, because the row was correctly found; only looking at the page showed the
 snippet was useless. `ts_headline` now reads the same text the index does.

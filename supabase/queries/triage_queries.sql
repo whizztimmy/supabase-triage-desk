@@ -83,7 +83,7 @@ limit 20;
 
 -- ---------------------------------------------------------------------------
 -- 5. Where the categories and the labels disagree.
---    Issues we triaged as a docs gap that nobody labelled "documentation" —
+--    Issues we triaged as a docs gap that nobody labelled "documentation",
 --    each row is a docs page that should exist.
 -- ---------------------------------------------------------------------------
 

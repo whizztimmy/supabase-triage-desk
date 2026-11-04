@@ -207,7 +207,7 @@ async function main() {
   );
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
-    console.warn('GITHUB_TOKEN is not set — unauthenticated requests are capped at 60/hour.');
+    console.warn('GITHUB_TOKEN is not set; unauthenticated requests are capped at 60/hour.');
   }
 
   const since = await resolveSince(db, args);

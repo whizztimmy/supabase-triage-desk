@@ -1,5 +1,5 @@
-// Checks the row level security policies from the roles that actually matter —
-// anon, and a signed-in user — rather than from the owner account, which
+// Checks the row level security policies from the roles that actually matter,
+// anon, and a signed-in user, rather than from the owner account, which
 // bypasses every policy. "It works in the SQL editor" is the most common false
 // positive in Supabase support, and this is how you avoid it.
 //
@@ -48,7 +48,7 @@ let notesTested = false;
 let ada = null;
 let grace = null;
 // A failed statement poisons the whole transaction, so anything that might
-// fail — or is meant to — runs inside a savepoint we can roll back to.
+// fail, or is meant to, runs inside a savepoint we can roll back to.
 await client.query('savepoint seed');
 try {
   ada = (

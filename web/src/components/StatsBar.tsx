@@ -15,7 +15,7 @@ export default function StatsBar({ stats }: Props) {
     <section className="stats" aria-label="Queue summary">
       {tiles.map((tile) => (
         <div className="stat" key={tile.label}>
-          <span className="stat-value">{tile.value ?? '—'}</span>
+          <span className="stat-value">{tile.value ?? '-'}</span>
           <span className="stat-label">{tile.label}</span>
         </div>
       ))}

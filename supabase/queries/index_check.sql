@@ -13,7 +13,7 @@ values ('loadtest', 'https://example.invalid/loadtest', 'NONE')
 on conflict (login) do nothing;
 
 -- 40k issues, a quarter of them open, a fifth of them pull requests, so the
--- partial index covers roughly a fifth of the table — the shape that makes a
+-- partial index covers roughly a fifth of the table, the shape that makes a
 -- partial index worth having in the first place.
 insert into issues (
   id, repo, number, title, body, state, author_login,

@@ -7,7 +7,7 @@ interface Props {
 }
 
 /**
- * "Has anyone reported this before?" — ranked full text search against the
+ * "Has anyone reported this before?": ranked full text search against the
  * mirror, so a duplicate gets a link to the existing thread instead of a new one.
  */
 export default function SearchPanel({ onSearch, results }: Props) {

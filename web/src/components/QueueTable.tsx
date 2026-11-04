@@ -59,7 +59,7 @@ export default function QueueTable({ rows, loading, canTriage, userId, onTriaged
               </td>
               <td className="labels">
                 {row.label_names.length === 0 ? (
-                  <span className="muted">—</span>
+                  <span className="muted">-</span>
                 ) : (
                   row.label_names.map((label) => (
                     <span className="label" key={label}>

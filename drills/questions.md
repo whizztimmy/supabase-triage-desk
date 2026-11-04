@@ -1,7 +1,7 @@
 # PostgreSQL drills for a Supabase support screen
 
 Thirty questions against the `drill` schema from [00_seed.sql](00_seed.sql). Worked
-solutions are in [answers.sql](answers.sql) — write yours first, then compare, because
+solutions are in [answers.sql](answers.sql). Write yours first, then compare, because
 the screen will ask you to *explain* the query, not just produce it.
 
 Setup:
@@ -19,15 +19,15 @@ someone who can write SQL.
 
 ---
 
-## Tier 1 — joins, filters, aggregates (the warm-up)
+## Tier 1: joins, filters, aggregates (the warm-up)
 
 1. How many issues are open, and how many are closed? One row, two columns.
 2. List the 10 orgs with the most projects. Include orgs with zero projects.
 3. For each plan, the number of orgs and their median project count.
 4. Which labels have never been applied to a single issue?
 5. Total paid revenue per region, highest first. `failed` and `open` invoices do not count.
-6. How many issues have no labels at all? Write it two ways — `not exists` and a
-   `left join ... is null` — then say which you would prefer and why.
+6. How many issues have no labels at all? Write it two ways, `not exists` and a
+   `left join ... is null`, then say which you would prefer and why.
 7. Every org whose most recent invoice is `failed`. (Careful: "has a failed invoice"
    is a different question.)
 8. For each author association, the share of their issues that are still open,
@@ -35,7 +35,7 @@ someone who can write SQL.
 9. Issues created in the last 30 days, bucketed by day, including days with zero.
 10. The 5 largest projects per region. Exactly five, even on ties.
 
-## Tier 2 — CTEs, window functions, time series
+## Tier 2: CTEs, window functions, time series
 
 11. Time to first triage per issue, in hours. Then its p50, p90 and p99.
 12. Week-over-week open-issue volume with the previous week and the delta.
@@ -52,7 +52,7 @@ someone who can write SQL.
 20. Monthly churn signal: orgs whose paid invoice count dropped to zero after
     having at least three.
 
-## Tier 3 — JSONB, arrays, text search
+## Tier 3: JSONB, arrays, text search
 
 21. Count issues by `payload->>'client'`. Which client reports the most?
 22. All self-hosted reports (`payload->'self_hosted'`) running Postgres 14.x.
@@ -65,7 +65,7 @@ someone who can write SQL.
 26. Rewrite `where body ilike '%service role%'` so it can use an index. Give the
     index too.
 
-## Tier 4 — performance and EXPLAIN (the part that gets you hired)
+## Tier 4: performance and EXPLAIN (the part that gets you hired)
 
 27. `select * from issues where lower(title) like 'rls%'` is slow. Explain why no
     plain B-tree on `title` helps, and give two fixes.
