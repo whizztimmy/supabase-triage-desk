@@ -1,19 +1,23 @@
 name: Keep warm
 
-# Free tier Supabase projects pause after about a week without activity, and a
-# paused project loses its DNS record: the hostname stops resolving, so the
-# dashboard shows "Failed to fetch" rather than an error anyone can read.
+# Free plan Supabase projects pause after a week of too little database
+# activity, and a paused project loses its DNS record: the hostname stops
+# resolving, so the dashboard shows "Failed to fetch" rather than an error
+# anyone can read.
 #
-# This does NOT reliably prevent that. On 4 Nov 2026 the project paused while
-# this workflow was passing every two to four days, so a PostgREST read does
-# not appear to reset the inactivity clock. Treat it as a smoke alarm rather
-# than a sprinkler: daily, so a pause shows up as a failed run within a day and
-# GitHub emails about it. Before the link matters, open it yourself.
+# Supabase's docs put the threshold at "a few user requests to the database each
+# day over the previous week". This workflow first ran once a day with a single
+# read, which was below that, and the project paused on 4 November 2026 and
+# again around 10 November. It now runs every six hours and makes three
+# different reads each time, about a dozen a day. That matches the documented
+# threshold, but Supabase publishes no exact rule, so each run also works as an
+# alarm: a pause becomes a failed run, and a GitHub email, within hours.
 
 on:
   schedule:
-    # 07:00 UTC daily. Detection, not prevention: see above.
-    - cron: '0 7 * * *'
+    # Every six hours, at 17 minutes past to stay clear of the top-of-hour rush
+    # that delays scheduled runs.
+    - cron: '17 */6 * * *'
   workflow_dispatch:
 
 jobs:
@@ -25,7 +29,7 @@ jobs:
     # together, or move the secrets to repository scope and drop this.
     environment: SUPABASE_URL
     steps:
-      - name: Read one row through PostgREST
+      - name: Read from the database through PostgREST
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           # The public anon key, the same one shipped in the browser bundle.
@@ -40,14 +44,21 @@ jobs:
             missing="${missing:+$missing and }SUPABASE_ANON_KEY"
           fi
           if [ -n "$missing" ]; then
-            echo "::error::Empty secret(s): $missing. They belong in Settings ->"                 "Secrets and variables -> Actions -> *Secrets* tab -> Repository"                 "secrets. Values saved under the Variables tab, under Dependabot,"                 "or as Environment secrets are not visible to this job."
+            echo "::error::Empty secret(s): ${missing}. Add them to the SUPABASE_URL environment under Settings > Environments, or at repository scope and remove this job's environment line."
             exit 1
           fi
-          code=$(curl -sS -o /dev/null -w '%{http_code}' \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/issues?select=id&limit=1")
-          echo "PostgREST returned ${code}"
-          test "${code}" = "200"
+          # Three different queries, each a real read against the database: a
+          # table, the queue view with its joins, and the label list.
+          for path in \
+            "issues?select=id&limit=1" \
+            "issue_queue?select=id&state=eq.open&limit=1" \
+            "labels?select=name&limit=1"; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              "${SUPABASE_URL}/rest/v1/${path}")
+            echo "${path} -> ${code}"
+            test "${code}" = "200"
+          done
 
       - name: Check the dashboard is still serving
         run: |

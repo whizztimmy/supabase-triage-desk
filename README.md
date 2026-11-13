@@ -212,15 +212,19 @@ anything to show.
 
 ### Keeping it awake
 
-`.github/workflows/keep-warm.yml` reads a single row through PostgREST daily
-and checks that the deployed page still answers 200.
+`.github/workflows/keep-warm.yml` runs every six hours. Each run makes three
+different reads through PostgREST, about a dozen a day, and checks that the
+deployed page still answers 200.
 
-It does not reliably stop the project pausing. On 4 November 2026 it paused
-while this workflow was passing every two to four days, so a PostgREST read
-does not appear to reset the inactivity clock. What the workflow buys is
-detection: a pause becomes a failed run within a day, and GitHub emails about
-it, instead of the demo quietly serving an empty page for however long nobody
-looks. Before the link matters to you, open it yourself.
+The schedule follows Supabase's own threshold. Its docs say a free project
+pauses after a week of too little database activity, and that "a few user
+requests to the database each day over the previous week" is typically enough
+to prevent it. The first version of this workflow made one read a day, below
+that line, and the project paused on 4 November 2026 and again around 10
+November. Supabase publishes no exact rule, so each run doubles as an alarm: a
+pause becomes a failed run and a GitHub email within hours, instead of the demo
+quietly serving an empty page for however long nobody looks. Before the link
+matters to you, open it yourself.
 
 It needs two secrets. They can sit at repository scope (Settings -> Secrets and
 variables -> Actions -> Repository secrets), or inside an environment that the
