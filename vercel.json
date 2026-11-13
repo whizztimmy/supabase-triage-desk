@@ -4,6 +4,9 @@
   "installCommand": "npm --prefix web install",
   "buildCommand": "npm --prefix web run build",
   "outputDirectory": "web/dist",
+  "crons": [
+    { "path": "/api/keep-warm", "schedule": "0 6 * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

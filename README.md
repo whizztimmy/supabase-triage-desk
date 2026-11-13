@@ -236,6 +236,16 @@ becomes a failed run and a GitHub email within hours. A billing lock silences
 the alarm along with the pings. Before the link matters to you, open it
 yourself, and if a run fails, read its message before assuming the cause.
 
+A second path does not depend on GitHub at all. `api/keep-warm.js` is a Vercel
+Function that makes four different reads through PostgREST, and the `crons`
+entry in `vercel.json` runs it once a day at about 06:00 UTC, which is as often
+as the Hobby plan allows (its timing can drift by up to an hour). It reads
+with the public anon key from the same `VITE_SUPABASE_*` variables the build
+uses, so it needs no extra setup. It answers 200 when every read succeeds and
+502 when any fails, so a paused project shows up as a failed run under the
+project's **Cron Jobs** settings and in its logs. Anyone can open
+`/api/keep-warm` to run it by hand; it can only read what a visitor can.
+
 It needs two secrets. They can sit at repository scope (Settings -> Secrets and
 variables -> Actions -> Repository secrets), or inside an environment that the
 job names. This repository uses an environment called `SUPABASE_URL`, which is
