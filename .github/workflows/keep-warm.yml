@@ -6,12 +6,18 @@ name: Keep warm
 # anyone can read.
 #
 # Supabase's docs put the threshold at "a few user requests to the database each
-# day over the previous week". This workflow first ran once a day with a single
-# read, which was below that, and the project paused on 4 November 2026 and
-# again around 10 November. It now runs every six hours and makes three
-# different reads each time, about a dozen a day. That matches the documented
-# threshold, but Supabase publishes no exact rule, so each run also works as an
-# alarm: a pause becomes a failed run, and a GitHub email, within hours.
+# day over the previous week". It now runs every six hours and makes three
+# different reads each time, about a dozen a day.
+#
+# The project paused on 4 November 2026 and again around 10 November. The first
+# version of this workflow was meant to read once a day but ran only twice in
+# the week before the first pause, and from 5 November GitHub started no runs
+# at all because the owning account was locked over a billing issue. Those runs
+# fail with "account is locked due to a billing issue", not a database error,
+# so read the message before blaming the schedule.
+#
+# Each run also works as an alarm: a pause becomes a failed run, and a GitHub
+# email, within hours. A billing lock silences that alarm too.
 
 on:
   schedule:
@@ -30,8 +36,8 @@ jobs:
     #
     # deployment: false keeps the secrets but stops each run being recorded as
     # a GitHub deployment. Without it, every ping showed up on the repo page
-    # as a deploy to "SUPABASE_URL", and every paused-project failure as a
-    # failed deploy, although nothing is deployed here.
+    # as a deploy to "SUPABASE_URL", and every failed run as a failed deploy,
+    # although nothing is deployed here.
     environment:
       name: SUPABASE_URL
       deployment: false
