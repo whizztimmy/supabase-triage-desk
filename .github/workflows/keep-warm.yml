@@ -27,7 +27,14 @@ jobs:
     # repository level, and a job only sees environment secrets when it says
     # which environment it runs in. Rename the environment and this line
     # together, or move the secrets to repository scope and drop this.
-    environment: SUPABASE_URL
+    #
+    # deployment: false keeps the secrets but stops each run being recorded as
+    # a GitHub deployment. Without it, every ping showed up on the repo page
+    # as a deploy to "SUPABASE_URL", and every paused-project failure as a
+    # failed deploy, although nothing is deployed here.
+    environment:
+      name: SUPABASE_URL
+      deployment: false
     steps:
       - name: Read from the database through PostgREST
         env:
