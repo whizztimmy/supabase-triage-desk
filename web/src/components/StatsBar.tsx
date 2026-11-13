@@ -8,6 +8,7 @@ export default function StatsBar({ stats }: Props) {
   const tiles = [
     { label: 'Open issues', value: stats?.open },
     { label: 'Awaiting first triage', value: stats?.untriaged },
+    { label: 'Have a PR waiting', value: stats?.fixWaiting },
     { label: 'Triaged this week', value: stats?.triagedThisWeek },
   ];
 

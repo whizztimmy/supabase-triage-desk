@@ -28,6 +28,15 @@ export default function FilterBar({ filters, labels, onChange, onRefresh }: Prop
         Needs triage
       </label>
 
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={filters.onlyFixWaiting}
+          onChange={(event) => onChange({ ...filters, onlyFixWaiting: event.target.checked })}
+        />
+        PR waiting
+      </label>
+
       <label className="field">
         Label
         <select

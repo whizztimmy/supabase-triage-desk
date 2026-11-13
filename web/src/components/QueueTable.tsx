@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import type { QueueRow } from '../types';
+import type { LinkedPr, QueueRow } from '../types';
 import TriageForm from './TriageForm';
 
 interface Props {
@@ -20,6 +20,49 @@ function formatAge(hours: number): string {
 /** Anything open, untouched and older than two days is the queue's real problem. */
 function isAtRisk(row: QueueRow): boolean {
   return row.state === 'open' && row.needs_triage && row.age_hours > 48;
+}
+
+/** How many waiting PRs to list before folding the rest into a count. */
+const PRS_SHOWN = 4;
+
+/**
+ * Open pull requests linked to an issue. A PR that names the issue counts as
+ * waiting; one only mentioned in the issue's thread is listed apart, because
+ * "see #123" is not the same claim as "fixes #123".
+ */
+function LinkedPrs({ prs }: { prs: LinkedPr[] }) {
+  if (prs.length === 0) return null;
+  const waiting = prs.filter((pr) => pr.source !== 'thread');
+  const mentioned = prs.filter((pr) => pr.source === 'thread');
+
+  return (
+    <div className="prs">
+      {waiting.length > 0 && (
+        <span className="pill pr-waiting">
+          {waiting.length === 1 ? '1 PR waiting' : `${waiting.length} PRs waiting`}
+        </span>
+      )}
+      {waiting.slice(0, PRS_SHOWN).map((pr) => (
+        <a key={pr.number} href={pr.url} target="_blank" rel="noreferrer" title={pr.title}>
+          #{pr.number}
+          {pr.draft && ' (draft)'}
+        </a>
+      ))}
+      {waiting.length > PRS_SHOWN && (
+        <span className="muted">+{waiting.length - PRS_SHOWN} more</span>
+      )}
+      {mentioned.length > 0 && (
+        <span className="muted">
+          mentioned:{' '}
+          {mentioned.map((pr) => (
+            <a key={pr.number} href={pr.url} target="_blank" rel="noreferrer" title={pr.title}>
+              #{pr.number}
+            </a>
+          ))}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export default function QueueTable({ rows, loading, canTriage, userId, onTriaged }: Props) {
@@ -50,6 +93,7 @@ export default function QueueTable({ rows, loading, canTriage, userId, onTriaged
                   #{row.number} {row.title}
                 </a>
                 <span className={`pill ${row.state}`}>{row.state}</span>
+                <LinkedPrs prs={row.open_prs ?? []} />
               </td>
               <td className="reporter">
                 {row.author_login ?? 'unknown'}

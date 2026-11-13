@@ -44,6 +44,23 @@ export interface QueueRow {
   triage_note: string | null;
   triaged_at: string | null;
   needs_triage: boolean;
+  open_prs: LinkedPr[];
+  /** True when at least one open PR names this issue in its own title or body. */
+  fix_waiting: boolean;
+}
+
+/**
+ * An open pull request linked to an issue. `source` says how the link was found:
+ * the PR names the issue (`pr_text`), only the issue's thread names the PR
+ * (`thread`, which is looser), or each names the other (`both`).
+ */
+export interface LinkedPr {
+  number: number;
+  title: string;
+  url: string;
+  author: string | null;
+  draft: boolean;
+  source: 'pr_text' | 'thread' | 'both';
 }
 
 /** One row returned by the `search_issues` function. */
@@ -63,6 +80,7 @@ export interface SearchRow {
 export interface Filters {
   onlyOpen: boolean;
   onlyUntriaged: boolean;
+  onlyFixWaiting: boolean;
   label: string;
   sort: 'newest' | 'oldest' | 'most-commented' | 'recently-updated';
 }

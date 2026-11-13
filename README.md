@@ -33,6 +33,12 @@ average, label volume week over week, repeat reporters whose issues never get
 closed, and issues triaged as a docs gap that nobody labelled as one. Each row
 there is a documentation page that should exist.
 
+**PR waiting.** The open pull requests linked to each open issue, so the queue
+shows which old issues are one review away from closed. On 13 November 2026,
+179 of the 297 open issues in `supabase/supabase` had at least one open PR that
+names them, and one had fifteen. The oldest part of that backlog is not
+unsolved problems; it is unreviewed solutions.
+
 ## How it's put together
 
 ```
@@ -115,6 +121,23 @@ cursor moves to the last row fetched and paging restarts at one. That is what
 lets `--full` cover a history of any size in a single run. Rows are written a
 page at a time rather than once at the end, so a run that stops early keeps
 everything it already fetched.
+
+Then link open pull requests to the issues they address:
+
+```bash
+npm run ingest:prs                              # rebuilds issue_prs in one transaction
+npm run ingest:prs -- --dry-run --issue 6435    # report only, no database needed
+```
+
+It needs `GITHUB_TOKEN`, because GitHub's GraphQL API refuses anonymous calls.
+GitHub's own cross-reference links were not enough on their own: they appear on
+an issue only when a PR's body names it, and checked against nine hand-triaged
+issues they found one of the expected PRs. The common case runs the other way,
+a contributor commenting "opened #123 for this" on the issue. So the script
+reads both directions, PRs that name an issue and issue threads that name a PR,
+and records which one found each link. Thread-only links are listed as mentions
+and do not count as waiting, because "see #123" is not the claim "fixes #123"
+is.
 
 **4. Start the dashboard.**
 

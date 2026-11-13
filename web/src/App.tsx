@@ -20,6 +20,7 @@ const SORTS: Record<Filters['sort'], { column: string; ascending: boolean }> = {
 export interface Stats {
   open: number;
   untriaged: number;
+  fixWaiting: number;
   triagedThisWeek: number;
 }
 
@@ -28,6 +29,7 @@ export default function App() {
   const [filters, setFilters] = useState<Filters>({
     onlyOpen: true,
     onlyUntriaged: false,
+    onlyFixWaiting: false,
     label: '',
     sort: 'newest',
   });
@@ -61,6 +63,7 @@ export default function App() {
 
     if (filters.onlyOpen) query = query.eq('state', 'open');
     if (filters.onlyUntriaged) query = query.eq('needs_triage', true);
+    if (filters.onlyFixWaiting) query = query.eq('fix_waiting', true);
     // `contains` on a text[] column becomes `label_names @> {name}` server side.
     if (filters.label) query = query.contains('label_names', [filters.label]);
 
@@ -86,7 +89,7 @@ export default function App() {
     const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     // head: true asks PostgREST for the count only, no rows cross the wire.
-    const [open, untriaged, triaged] = await Promise.all([
+    const [open, untriaged, fixWaiting, triaged] = await Promise.all([
       supabase
         .from('issue_queue')
         .select('id', { count: 'exact', head: true })
@@ -97,6 +100,11 @@ export default function App() {
         .eq('state', 'open')
         .eq('needs_triage', true),
       supabase
+        .from('issue_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('state', 'open')
+        .eq('fix_waiting', true),
+      supabase
         .from('triage_notes')
         .select('id', { count: 'exact', head: true })
         .gte('created_at', weekAgo),
@@ -105,6 +113,7 @@ export default function App() {
     setStats({
       open: open.count ?? 0,
       untriaged: untriaged.count ?? 0,
+      fixWaiting: fixWaiting.count ?? 0,
       triagedThisWeek: triaged.count ?? 0,
     });
   }, []);

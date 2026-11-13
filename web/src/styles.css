@@ -349,3 +349,27 @@ button.ghost {
     padding: 3px 8px;
   }
 }
+
+/* Open pull requests linked to an issue: the fix that is one review away. */
+.prs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.78rem;
+}
+
+.prs .pill {
+  margin-left: 0;
+}
+
+.prs .muted a + a {
+  margin-left: 4px;
+}
+
+.pill.pr-waiting {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  text-transform: none;
+}
